@@ -36,4 +36,8 @@ public class UserProfile {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     private List<String> experience;
+
+    @OneToOne
+    @JoinColumn(name = "user_id")
+    private User user;
 }
