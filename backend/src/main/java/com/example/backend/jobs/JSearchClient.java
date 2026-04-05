@@ -5,10 +5,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Component
 public class JSearchClient {
@@ -48,7 +50,19 @@ public class JSearchClient {
             dto.setJobId((String) job.get("job_id"));
             dto.setTitle((String) job.get("job_title"));
             dto.setCompany((String) job.get("employer_name"));
-            dto.setLocation((String) job.get("job_city"));
+
+            String city = (String) job.get("job_city");
+            String state = (String) job.get("job_state");
+            String country = (String) job.get("job_country");
+
+            String locationText = Stream.of(city, state, country)
+                    .filter(Objects::nonNull)
+                    .map(String::trim)
+                    .filter(value -> !value.isEmpty())
+                    .collect(Collectors.joining(", "));
+
+            dto.setLocation(locationText.isEmpty() ? "Not specified" : locationText);
+
             dto.setDescription((String) job.get("job_description"));
             dto.setApplyLink((String) job.get("job_apply_link"));
             dto.setEmploymentType((String) job.get("job_employment_type"));

@@ -97,6 +97,4 @@ public class ResumeService {
             throw new RuntimeException("Failed to parse Groq response: " + e.getMessage());
         }
     }
-
-
 }
