@@ -1,5 +1,6 @@
-package com.example.backend.ai;
+package com.example.backend.ai.infrastructure;
 
+import com.example.backend.ai.application.port.out.AiChatClientPort;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -9,26 +10,28 @@ import java.util.Map;
 import java.util.Objects;
 
 @Component
-public class GroqClient {
+public class GroqClientAdapter implements AiChatClientPort {
 
-   private final WebClient webClient;
-   private final String groqApiKey;
+    private final WebClient webClient;
+    private final String groqApiKey;
 
-    public GroqClient(@Value("${groq.api.url}") String groqUrl, @Value("${groq.api.key}") String groqApiKey) {
+    public GroqClientAdapter(@Value("${groq.api.url}") String groqUrl, @Value("${groq.api.key}") String groqApiKey) {
         this.webClient = WebClient.builder().baseUrl(groqUrl).build();
         this.groqApiKey = groqApiKey;
     }
 
-    public String chat(String model, String prompt){
+    @Override
+    public String chat(String model, String prompt) {
         Map<String, Object> requestBody = Map.of(
                 "model", model,
                 "messages", List.of(Map.of("role", "user", "content", prompt)),
                 "temperature", 0.1
         );
 
-        return getString(requestBody);
+        return execute(requestBody);
     }
 
+    @Override
     public String chatWithMessages(String model, List<Map<String, String>> messages) {
         Map<String, Object> requestBody = Map.of(
                 "model", model,
@@ -36,11 +39,11 @@ public class GroqClient {
                 "temperature", 0.7
         );
 
-        return getString(requestBody);
+        return execute(requestBody);
     }
 
     @SuppressWarnings("rawtypes")
-    private String getString(Map<String, Object> requestBody) {
+    private String execute(Map<String, Object> requestBody) {
         Map response = webClient.post()
                 .header("Authorization", "Bearer " + groqApiKey)
                 .header("Content-Type", "application/json")

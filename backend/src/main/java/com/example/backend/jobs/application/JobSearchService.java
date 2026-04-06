@@ -1,6 +1,7 @@
-package com.example.backend.jobs;
+package com.example.backend.jobs.application;
 
-import com.example.backend.ai.AiService;
+import com.example.backend.jobs.application.port.out.JobRankingPort;
+import com.example.backend.jobs.application.port.out.JobSearchProviderPort;
 import com.example.backend.jobs.dto.JobDto;
 import org.springframework.stereotype.Service;
 
@@ -9,39 +10,38 @@ import java.util.Locale;
 import java.util.stream.Collectors;
 
 @Service
-public class JobService {
-    private final JSearchClient jSearchClient;
-    private final AiService aiService;
+public class JobSearchService implements JobSearchUseCase {
 
-    public JobService(JSearchClient jSearchClient, AiService aiService) {
-        this.jSearchClient = jSearchClient;
-        this.aiService = aiService;
+    private final JobSearchProviderPort jobSearchProvider;
+    private final JobRankingPort jobRankingPort;
+
+    public JobSearchService(JobSearchProviderPort jobSearchProvider, JobRankingPort jobRankingPort) {
+        this.jobSearchProvider = jobSearchProvider;
+        this.jobRankingPort = jobRankingPort;
     }
 
-    public List<JobDto> findMatchingJobs(String query, String location, List<String> skills){
+    @Override
+    public List<JobDto> search(String query, String location, List<String> skills) {
+        List<JobDto> jobs = jobSearchProvider.searchJobs(query, location);
+        String normalizedLocation = location == null ? "" : location.toLowerCase().trim();
+        String countryCode = resolveCountryCode(location);
 
-       List<JobDto> jobs = jSearchClient.searchJobs(query, location);
-       String normalizedLocation = location == null ? "" : location.toLowerCase().trim();
-       String countryCode = resolveCountryCode(location);
+        jobs = jobs.stream()
+                .filter(job -> Boolean.TRUE.equals(job.getIsRemote()) || matchesLocation(job, normalizedLocation, countryCode))
+                .collect(Collectors.toList());
 
-         jobs = jobs.stream()
-                 .filter(job ->
-                         Boolean.TRUE.equals(job.getIsRemote()) || matchesLocation(job, normalizedLocation, countryCode)
-                 )
-                 .collect(Collectors.toList());
-
-       if(skills != null && !skills.isEmpty()){
-           jobs = jobs.stream()
-                   .filter(job -> job.getDescription() != null
-                           && skills.stream().anyMatch(skill -> job.getDescription().toLowerCase().contains(skill.toLowerCase())))
-                   .collect(Collectors.toList());
-       }
-
-        if (skills != null && !skills.isEmpty() && !jobs.isEmpty()) {
-            jobs = aiService.rankJobs(jobs, skills);
+        if (skills != null && !skills.isEmpty()) {
+            jobs = jobs.stream()
+                    .filter(job -> job.getDescription() != null
+                            && skills.stream().anyMatch(skill -> job.getDescription().toLowerCase().contains(skill.toLowerCase())))
+                    .collect(Collectors.toList());
         }
 
-       return jobs;
+        if (skills != null && !skills.isEmpty() && !jobs.isEmpty()) {
+            jobs = jobRankingPort.rankJobs(jobs, skills);
+        }
+
+        return jobs;
     }
 
     private boolean matchesLocation(JobDto job, String normalizedLocation, String countryCode) {
@@ -79,5 +79,4 @@ public class JobService {
 
         return null;
     }
-
 }

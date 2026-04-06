@@ -1,11 +1,11 @@
-package com.example.backend.jobs;
+package com.example.backend.jobs.infrastructure;
 
+import com.example.backend.jobs.application.port.out.JobSearchProviderPort;
 import com.example.backend.jobs.dto.JobDto;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -13,14 +13,14 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Component
-public class JSearchClient {
+public class JSearchClientAdapter implements JobSearchProviderPort {
     private final WebClient webClient;
     private final String apiKey;
 
     @Value("${jsearch.api.url}")
     private String apiUrl;
 
-    JSearchClient(
+    JSearchClientAdapter(
             @Value("${jsearch.api.url}") String apiUrl,
             @Value("${jsearch.api.key}") String apiKey
     ) {
@@ -29,6 +29,7 @@ public class JSearchClient {
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
+    @Override
     public List<JobDto> searchJobs(String query, String location) {
         Map response = webClient.get()
                 .uri(uriBuilder -> uriBuilder

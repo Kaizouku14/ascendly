@@ -1,5 +1,8 @@
-package com.example.backend.ai;
+package com.example.backend.ai.application;
 
+import com.example.backend.ai.ChatHistory;
+import com.example.backend.ai.ChatHistoryRepository;
+import com.example.backend.ai.application.port.out.AiChatClientPort;
 import com.example.backend.ai.dto.ChatHistoryDto;
 import com.example.backend.ai.dto.ChatRequestDto;
 import com.example.backend.ai.dto.ChatResponseDto;
@@ -18,9 +21,9 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
-public class AiService {
+public class AiService implements AiChatUseCase, JobRankingUseCase {
 
-    private final GroqClient groqClient;
+    private final AiChatClientPort aiChatClient;
     private final ChatHistoryRepository chatHistoryRepository;
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -31,12 +34,13 @@ public class AiService {
     @Value("${groq.model.chat}")
     private String chatModel;
 
-    public AiService(GroqClient groqClient, ChatHistoryRepository chatHistoryRepository, UserRepository userRepository) {
-        this.groqClient = groqClient;
+    public AiService(AiChatClientPort aiChatClient, ChatHistoryRepository chatHistoryRepository, UserRepository userRepository) {
+        this.aiChatClient = aiChatClient;
         this.chatHistoryRepository = chatHistoryRepository;
         this.userRepository = userRepository;
     }
 
+    @Override
     public List<JobDto> rankJobs(List<JobDto> jobs, List<String> skills) {
         String prompt = """
                 You are a job matching assistant. Given a list of jobs and a candidate's skills,
@@ -49,7 +53,7 @@ public class AiService {
                 %s
                 """.formatted(skills.toString(), toJson(jobs));
 
-        String response = groqClient.chat(groqModelParser, prompt);
+        String response = aiChatClient.chat(groqModelParser, prompt);
 
         response = response
                 .replaceAll("```json", "")
@@ -81,37 +85,34 @@ public class AiService {
         chatHistoryRepository.save(chatHistory);
     }
 
+    @Override
     public ChatResponseDto chat(ChatRequestDto request, UUID userId) {
 
         String systemPrompt = """
             You are Upskill, a friendly and professional AI career companion.
             Your goal is to help the user find jobs, improve their resume, and grow their career.
-            
+
             User's skills: %s
             User's target role: %s
-            
+
             Keep responses concise, helpful, and encouraging.
             """.formatted(
                 request.getSkills() != null ? request.getSkills().toString() : "Not specified",
                 request.getTargetRole() != null ? request.getTargetRole() : "Not specified"
         );
 
-        // Build full message list: system prompt + history + new message
         List<Map<String, String>> messages = new ArrayList<>();
-
         messages.add(Map.of("role", "system", "content", systemPrompt));
 
-        // Previous conversation history from frontend
         if (request.getHistory() != null) {
             request.getHistory().forEach(msg ->
                     messages.add(Map.of("role", msg.getRole(), "content", msg.getContent()))
             );
         }
 
-        // User message
         messages.add(Map.of("role", "user", "content", request.getMessage()));
 
-        String reply = groqClient.chatWithMessages(chatModel, messages);
+        String reply = aiChatClient.chatWithMessages(chatModel, messages);
 
         User user = userRepository.findById(userId).orElseThrow();
         saveMessage(user, "user", request.getMessage());
@@ -122,6 +123,7 @@ public class AiService {
         return response;
     }
 
+    @Override
     public List<ChatHistoryDto> getChatHistory(UUID userId) {
         return chatHistoryRepository.findByUserIdOrderByCreatedAtAsc(userId)
                 .stream()
@@ -131,5 +133,4 @@ public class AiService {
                         message.getCreatedAt()))
                 .collect(Collectors.toList());
     }
-
 }
