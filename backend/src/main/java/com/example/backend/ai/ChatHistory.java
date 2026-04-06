@@ -13,7 +13,7 @@ public class ChatHistory {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    private String id;
+    private UUID id;
 
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)

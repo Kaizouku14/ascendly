@@ -1,18 +1,21 @@
 package com.example.backend.ai;
 
+import com.example.backend.ai.dto.ChatHistoryDto;
 import com.example.backend.ai.dto.ChatRequestDto;
 import com.example.backend.ai.dto.ChatResponseDto;
 import com.example.backend.jobs.dto.JobDto;
 import com.example.backend.user.User;
 import com.example.backend.user.UserRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import tools.jackson.databind.ObjectMapper;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class AiService {
@@ -69,7 +72,7 @@ public class AiService {
         }
     }
 
-    private void SaveMessage(User user, String role, String content){
+    private void saveMessage(User user, String role, String content) {
         ChatHistory chatHistory = new ChatHistory();
 
         chatHistory.setUser(user);
@@ -78,7 +81,7 @@ public class AiService {
         chatHistoryRepository.save(chatHistory);
     }
 
-    public ChatResponseDto chat(ChatRequestDto request, String userId) {
+    public ChatResponseDto chat(ChatRequestDto request, UUID userId) {
 
         String systemPrompt = """
             You are Upskill, a friendly and professional AI career companion.
@@ -111,12 +114,22 @@ public class AiService {
         String reply = groqClient.chatWithMessages(chatModel, messages);
 
         User user = userRepository.findById(userId).orElseThrow();
-        SaveMessage(user, "user", request.getMessage());
-        SaveMessage(user, "assistant", reply);
+        saveMessage(user, "user", request.getMessage());
+        saveMessage(user, "assistant", reply);
 
         ChatResponseDto response = new ChatResponseDto();
         response.setReply(reply);
         return response;
+    }
+
+    public List<ChatHistoryDto> getChatHistory(UUID userId) {
+        return chatHistoryRepository.findByUserIdOrderByCreatedAtAsc(userId)
+                .stream()
+                .map(message -> new ChatHistoryDto(
+                        message.getRole(),
+                        message.getContent(),
+                        message.getCreatedAt()))
+                .collect(Collectors.toList());
     }
 
 }

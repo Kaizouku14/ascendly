@@ -4,9 +4,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.UUID;
 
-@SuppressWarnings("NullableProblems")
 @Repository
-public interface SavedJobRepository extends JpaRepository<SavedJob, String> {
-    List<SavedJob> findByUserId(String userId);
+public interface SavedJobRepository extends JpaRepository<SavedJob, UUID> {
+    List<SavedJob> findByUserId(UUID userId);
 }

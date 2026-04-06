@@ -1,60 +1,64 @@
 package com.example.backend.auth;
 
+import com.example.backend.auth.application.AuthUseCase;
+import com.example.backend.auth.application.port.out.PasswordHasherPort;
+import com.example.backend.auth.application.port.out.TokenIssuerPort;
+import com.example.backend.auth.application.port.out.UserAccountRepositoryPort;
 import com.example.backend.auth.dto.AuthResponse;
 import com.example.backend.auth.dto.LoginRequest;
 import com.example.backend.auth.dto.RegisterRequest;
-import com.example.backend.user.User;
-import com.example.backend.user.UserRepository;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import com.example.backend.common.exception.ResourceConflictException;
+import com.example.backend.common.exception.UnauthorizedException;
 import org.springframework.stereotype.Service;
 
 @Service
-public class AuthService {
+public class AuthService implements AuthUseCase {
 
-    private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
-    private final JwtUtil jwtUtil;
+    private final UserAccountRepositoryPort userAccounts;
+    private final PasswordHasherPort passwordHasher;
+    private final TokenIssuerPort tokenIssuer;
 
-    AuthService(UserRepository userRepository,
-                PasswordEncoder passwordEncoder,
-                JwtUtil jwtUtil) {
-        this.userRepository = userRepository;
-        this.passwordEncoder = passwordEncoder;
-        this.jwtUtil = jwtUtil;
+    AuthService(UserAccountRepositoryPort userAccounts,
+                PasswordHasherPort passwordHasher,
+                TokenIssuerPort tokenIssuer) {
+        this.userAccounts = userAccounts;
+        this.passwordHasher = passwordHasher;
+        this.tokenIssuer = tokenIssuer;
     }
 
+    @Override
     public AuthResponse register(RegisterRequest request) {
-        if (userRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("Email already in use");
+        if (userAccounts.existsByEmail(request.getEmail())) {
+            throw new ResourceConflictException("Email already in use");
         }
 
-        User user = new User();
-        user.setEmail(request.getEmail());
-        user.setPassword(passwordEncoder.encode(request.getPassword()));
-        user.setUsername(request.getUsername());
-        userRepository.save(user);
+        var account = userAccounts.saveNew(
+                request.getUsername(),
+                request.getEmail(),
+                passwordHasher.hash(request.getPassword()));
 
-        String token = jwtUtil.generateToken(user.getId());
+        String token = tokenIssuer.issueToken(account.id());
 
         AuthResponse response = new AuthResponse();
         response.setToken(token);
-        response.setUserId(user.getId());
+        response.setUserId(account.id());
         return response;
     }
 
+    @Override
     public AuthResponse login(LoginRequest request) {
-        User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("Invalid email or password"));
+        var account = userAccounts.findByEmail(request.getEmail())
+                .orElseThrow(() -> new UnauthorizedException("Invalid email or password"));
 
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new RuntimeException("Invalid email or password");
+        if (!passwordHasher.matches(request.getPassword(), account.passwordHash())) {
+            throw new UnauthorizedException("Invalid email or password");
         }
 
-        String token = jwtUtil.generateToken(user.getId());
+        String token = tokenIssuer.issueToken(account.id());
 
         AuthResponse response = new AuthResponse();
         response.setToken(token);
-        response.setUserId(user.getId());
+        response.setUserId(account.id());
         return response;
     }
 

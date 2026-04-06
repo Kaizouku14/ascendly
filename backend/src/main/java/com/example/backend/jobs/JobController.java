@@ -1,6 +1,7 @@
 package com.example.backend.jobs;
 
 import com.example.backend.jobs.dto.JobDto;
+import jakarta.validation.constraints.NotBlank;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -16,9 +17,9 @@ public class JobController {
     }
 
     @GetMapping("/search")
-    public List<JobDto> searchJobs(@RequestParam String query,
-                           @RequestParam String location,
-                           @RequestParam(required = false) List<String> skills) {
+    public List<JobDto> searchJobs(@RequestParam @NotBlank String query,
+                           @RequestParam @NotBlank String location,
+                            @RequestParam(required = false) List<String> skills) {
         return jobService.findMatchingJobs(query, location, skills);
     }
 

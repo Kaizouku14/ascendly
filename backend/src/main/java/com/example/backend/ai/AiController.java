@@ -2,29 +2,34 @@ package com.example.backend.ai;
 
 
 import com.example.backend.ai.dto.*;
+import com.example.backend.security.CurrentUserProvider;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/ai")
 public class AiController {
 
    private final AiService aiService;
-   private final ChatHistoryRepository chatHistoryRepository;
+   private final CurrentUserProvider currentUserProvider;
 
-    public AiController(AiService aiService, ChatHistoryRepository chatHistoryRepository) {
+    public AiController(AiService aiService, CurrentUserProvider currentUserProvider) {
         this.aiService = aiService;
-        this.chatHistoryRepository = chatHistoryRepository;
+        this.currentUserProvider = currentUserProvider;
     }
 
     @PostMapping("/chat")
-    public ChatResponseDto chat(@RequestBody ChatRequestDto request, @RequestParam String userId) {
+    public ChatResponseDto chat(@Valid @RequestBody ChatRequestDto request) {
+        UUID userId = currentUserProvider.getCurrentUserId();
         return aiService.chat(request, userId);
     }
 
     @GetMapping("/history")
-    public List<ChatHistory> getChatHistory(@RequestParam String userId) {
-        return chatHistoryRepository.findByUserIdOrderByCreatedAtAsc(userId);
+    public List<ChatHistoryDto> getChatHistory() {
+        UUID userId = currentUserProvider.getCurrentUserId();
+        return aiService.getChatHistory(userId);
     }
 }

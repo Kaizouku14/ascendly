@@ -2,8 +2,10 @@ package com.example.backend.auth.dto;
 
 import lombok.Data;
 
+import java.util.UUID;
+
 @Data
 public class AuthResponse {
     private String token;
-    private String userId;
+    private UUID userId;
 }
