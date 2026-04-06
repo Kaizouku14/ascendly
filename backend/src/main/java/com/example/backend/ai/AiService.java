@@ -3,6 +3,8 @@ package com.example.backend.ai;
 import com.example.backend.ai.dto.ChatRequestDto;
 import com.example.backend.ai.dto.ChatResponseDto;
 import com.example.backend.jobs.dto.JobDto;
+import com.example.backend.user.User;
+import com.example.backend.user.UserRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.ObjectMapper;
@@ -16,6 +18,8 @@ import java.util.Map;
 public class AiService {
 
     private final GroqClient groqClient;
+    private final ChatHistoryRepository chatHistoryRepository;
+    private final UserRepository userRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Value("${groq.model.parser}")
@@ -24,8 +28,10 @@ public class AiService {
     @Value("${groq.model.chat}")
     private String chatModel;
 
-    public AiService(GroqClient groqClient) {
+    public AiService(GroqClient groqClient, ChatHistoryRepository chatHistoryRepository, UserRepository userRepository) {
         this.groqClient = groqClient;
+        this.chatHistoryRepository = chatHistoryRepository;
+        this.userRepository = userRepository;
     }
 
     public List<JobDto> rankJobs(List<JobDto> jobs, List<String> skills) {
@@ -63,8 +69,17 @@ public class AiService {
         }
     }
 
+    private void SaveMessage(User user, String role, String content){
+        ChatHistory chatHistory = new ChatHistory();
 
-    public ChatResponseDto chat(ChatRequestDto request) {
+        chatHistory.setUser(user);
+        chatHistory.setRole(role);
+        chatHistory.setContent(content);
+        chatHistoryRepository.save(chatHistory);
+    }
+
+    public ChatResponseDto chat(ChatRequestDto request, String userId) {
+
         String systemPrompt = """
             You are Upskill, a friendly and professional AI career companion.
             Your goal is to help the user find jobs, improve their resume, and grow their career.
@@ -81,7 +96,6 @@ public class AiService {
         // Build full message list: system prompt + history + new message
         List<Map<String, String>> messages = new ArrayList<>();
 
-        // System message
         messages.add(Map.of("role", "system", "content", systemPrompt));
 
         // Previous conversation history from frontend
@@ -91,13 +105,18 @@ public class AiService {
             );
         }
 
-        // New user message
+        // User message
         messages.add(Map.of("role", "user", "content", request.getMessage()));
 
         String reply = groqClient.chatWithMessages(chatModel, messages);
+
+        User user = userRepository.findById(userId).orElseThrow();
+        SaveMessage(user, "user", request.getMessage());
+        SaveMessage(user, "assistant", reply);
 
         ChatResponseDto response = new ChatResponseDto();
         response.setReply(reply);
         return response;
     }
+
 }
