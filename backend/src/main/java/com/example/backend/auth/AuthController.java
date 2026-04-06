@@ -1,20 +1,29 @@
 package com.example.backend.auth;
 
 
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import com.example.backend.auth.dto.AuthResponse;
+import com.example.backend.auth.dto.LoginRequest;
+import com.example.backend.auth.dto.RegisterRequest;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
 
+    private final AuthService authService;
 
-    public boolean Login (String email, String password) {
-        return false;
+    AuthController(AuthService authService) {
+        this.authService = authService;
     }
 
-    public boolean Register (String username, String email, String password) {
-        return false;
+    @PostMapping("/register")
+    public AuthResponse register(@RequestBody RegisterRequest request) {
+        return authService.register(request);
+    }
+
+    @PostMapping("/login")
+    public AuthResponse login(@RequestBody LoginRequest request) {
+        return authService.login(request);
     }
 
 }
