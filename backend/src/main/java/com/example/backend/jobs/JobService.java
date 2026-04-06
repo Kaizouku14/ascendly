@@ -1,6 +1,6 @@
 package com.example.backend.jobs;
 
-import com.example.backend.ai.AIService;
+import com.example.backend.ai.AiService;
 import com.example.backend.jobs.dto.JobDto;
 import org.springframework.stereotype.Service;
 
@@ -11,9 +11,9 @@ import java.util.stream.Collectors;
 @Service
 public class JobService {
     private final JSearchClient jSearchClient;
-    private final AIService aiService;
+    private final AiService aiService;
 
-    public JobService(JSearchClient jSearchClient, AIService aiService) {
+    public JobService(JSearchClient jSearchClient, AiService aiService) {
         this.jSearchClient = jSearchClient;
         this.aiService = aiService;
     }

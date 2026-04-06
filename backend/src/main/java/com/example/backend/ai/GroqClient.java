@@ -19,7 +19,6 @@ public class GroqClient {
         this.groqApiKey = groqApiKey;
     }
 
-    @SuppressWarnings("rawtypes")
     public String chat(String model, String prompt){
         Map<String, Object> requestBody = Map.of(
                 "model", model,
@@ -27,6 +26,21 @@ public class GroqClient {
                 "temperature", 0.1
         );
 
+        return getString(requestBody);
+    }
+
+    public String chatWithMessages(String model, List<Map<String, String>> messages) {
+        Map<String, Object> requestBody = Map.of(
+                "model", model,
+                "messages", messages,
+                "temperature", 0.7
+        );
+
+        return getString(requestBody);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private String getString(Map<String, Object> requestBody) {
         Map response = webClient.post()
                 .header("Authorization", "Bearer " + groqApiKey)
                 .header("Content-Type", "application/json")
@@ -40,5 +54,4 @@ public class GroqClient {
         Map message = (Map) firstChoice.get("message");
         return (String) message.get("content");
     }
-
 }
